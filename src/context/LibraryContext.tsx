@@ -81,20 +81,37 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [books, setBooks] = useState<Book[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.BOOKS);
-      if (!saved) {
+      // Key absent → first launch: seed with initial catalog
+      if (saved === null) {
         localStorage.setItem(STORAGE_KEYS.BOOKS, JSON.stringify(INITIAL_BOOKS));
         return INITIAL_BOOKS;
       }
       const parsed = JSON.parse(saved);
-      if (!Array.isArray(parsed) || parsed.length === 0) {
+      // Data is corrupted (not an array) → reset to initial
+      if (!Array.isArray(parsed)) {
         localStorage.setItem(STORAGE_KEYS.BOOKS, JSON.stringify(INITIAL_BOOKS));
         return INITIAL_BOOKS;
       }
-      // Ensure each book has a valid status: 'Disponible' | 'Indisponible' and required fields
+      // Key exists and is an empty array → intentional empty catalog (manager deleted all books)
+      if (parsed.length === 0) {
+        return [];
+      }
+      // Hydrate each book: preserve real copies, only fill missing fields with safe defaults
       const hydrated: Book[] = parsed.map((b: any, index: number) => {
         const initialMatch = INITIAL_BOOKS.find(ib => ib.id === b.id);
         const cover = b.coverImage || initialMatch?.coverImage;
         const status: BookAvailability = b.status === 'Indisponible' ? 'Indisponible' : 'Disponible';
+        const totalCopies = typeof b.totalCopies === 'number' && b.totalCopies > 0 ? b.totalCopies : 1;
+        // Preserve real availableCopies; enforce coherence with status and bounds
+        let availableCopies: number;
+        if (status === 'Indisponible') {
+          availableCopies = 0;
+        } else {
+          const raw = typeof b.availableCopies === 'number' ? b.availableCopies : totalCopies;
+          availableCopies = Math.min(Math.max(raw, 0), totalCopies);
+          // If stored value was 0 for a Disponible book, default to 1 (data inconsistency guard)
+          if (availableCopies === 0) availableCopies = 1;
+        }
         return {
           id: b.id || `book-${Date.now()}-${index}`,
           title: b.title || 'Sans titre',
@@ -106,8 +123,8 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
           pages: typeof b.pages === 'number' ? b.pages : 100,
           language: b.language || 'Français',
           location: b.location || 'Rayon A-01',
-          totalCopies: typeof b.totalCopies === 'number' ? b.totalCopies : 1,
-          availableCopies: status === 'Disponible' ? 1 : 0,
+          totalCopies,
+          availableCopies,
           status,
           coverColor: b.coverColor || 'from-amber-900 to-stone-900',
           coverImage: cover,
