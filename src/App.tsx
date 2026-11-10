@@ -12,6 +12,12 @@ import { BookOpen } from 'lucide-react';
 function LibraryApp() {
   const { userSession } = useLibrary();
 
+  // Modals state - MUST be declared unconditionally at top level of hook execution (React Rules of Hooks)
+  const [isBookFormOpen, setIsBookFormOpen] = useState(false);
+  const [bookToEdit, setBookToEdit] = useState<Book | null>(null);
+  const [isBookDetailOpen, setIsBookDetailOpen] = useState(false);
+  const [detailBookId, setDetailBookId] = useState<string | null>(null);
+
   // If user is not logged in, render the single intelligent login page
   if (!userSession) {
     return (
@@ -23,13 +29,6 @@ function LibraryApp() {
   }
 
   const isManager = userSession.role === 'librarian';
-
-  // Modals state
-  const [isBookFormOpen, setIsBookFormOpen] = useState(false);
-  const [bookToEdit, setBookToEdit] = useState<Book | null>(null);
-
-  const [isBookDetailOpen, setIsBookDetailOpen] = useState(false);
-  const [detailBookId, setDetailBookId] = useState<string | null>(null);
 
   const handleOpenNewBook = () => {
     if (!isManager) return;

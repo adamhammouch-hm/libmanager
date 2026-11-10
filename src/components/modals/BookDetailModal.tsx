@@ -1,17 +1,11 @@
 import React, { useState } from 'react';
 import {
   X,
-  BookOpen,
   MapPin,
-  Calendar,
-  Layers,
-  FileText,
   Edit2,
   Trash2,
   CheckCircle2,
   AlertCircle,
-  ToggleLeft,
-  ToggleRight,
 } from 'lucide-react';
 import { useLibrary } from '../../context/LibraryContext';
 import { Book } from '../../types';
@@ -218,7 +212,7 @@ export const BookDetailModal: React.FC<BookDetailModalProps> = ({
             </div>
           )}
 
-          {/* Student Notice (No borrowing or modifying) */}
+          {/* Student Notice (Strictly read-only) */}
           {!isManager && (
             <div className="pt-3 border-t border-slate-100 text-center">
               <p className="text-xs text-slate-500">

@@ -1,5 +1,13 @@
 import { Book, UserAccount } from '../types';
 
+// Dynamic dates calculation to prevent hardcoded legacy dates
+const CURRENT_DATE = new Date();
+const formatDate = (daysAgo: number) => {
+  const d = new Date(CURRENT_DATE);
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().split('T')[0];
+};
+
 export const DEFAULT_MANAGER_ACCOUNT: UserAccount = {
   id: 'mgr-1',
   email: 'gestionnaire@bibliotech.fr',
@@ -7,7 +15,7 @@ export const DEFAULT_MANAGER_ACCOUNT: UserAccount = {
   role: 'librarian',
   firstName: 'Gestionnaire',
   lastName: 'BiblioTech',
-  createdAt: '2024-01-01',
+  createdAt: formatDate(120),
 };
 
 export const DEFAULT_STUDENT_ACCOUNT: UserAccount = {
@@ -18,7 +26,7 @@ export const DEFAULT_STUDENT_ACCOUNT: UserAccount = {
   firstName: 'Alexandre',
   lastName: 'Dubois',
   studentNumber: 'ETU-2026-402',
-  createdAt: '2024-01-15',
+  createdAt: formatDate(60),
 };
 
 export const INITIAL_ACCOUNTS: UserAccount[] = [
@@ -44,7 +52,7 @@ export const INITIAL_BOOKS: Book[] = [
     coverColor: 'from-amber-900 to-stone-900',
     coverImage: '/src/assets/images/cover_les_miserables_1791972946250.jpg',
     description: 'Chef-d\'œuvre de la littérature mondiale dépeignant la vie des misérables dans Paris et la province française du XIXe siècle à travers le destin de Jean Valjean.',
-    addedDate: '2024-01-15',
+    addedDate: formatDate(90),
   },
   {
     id: 'b-2',
@@ -62,7 +70,7 @@ export const INITIAL_BOOKS: Book[] = [
     status: 'Disponible',
     coverColor: 'from-amber-700 to-amber-950',
     description: 'Roman philosophique explorant l\'absurdité de l\'existence humaine à travers Meursault, modeste employé à Alger qui commet un meurtre inexplicable sous le soleil d\'été.',
-    addedDate: '2024-01-18',
+    addedDate: formatDate(85),
   },
   {
     id: 'b-3',
@@ -81,7 +89,7 @@ export const INITIAL_BOOKS: Book[] = [
     coverColor: 'from-sky-700 to-indigo-950',
     coverImage: '/src/assets/images/cover_le_petit_prince_1791972946024.jpg',
     description: 'Un conte poétique et philosophique qui aborde avec simplicité des thèmes profonds comme l\'amitié, l\'amour, la perte et le sens de la vie.',
-    addedDate: '2024-02-01',
+    addedDate: formatDate(75),
   },
   {
     id: 'b-4',
@@ -100,7 +108,7 @@ export const INITIAL_BOOKS: Book[] = [
     coverColor: 'from-zinc-800 to-stone-950',
     coverImage: '/src/assets/images/cover_1984_1791972946953.jpg',
     description: 'Dystopie visionnaire décrivant une société totalitaire gouvernée par Big Brother où la surveillance omniprésente réprime toute liberté de pensée.',
-    addedDate: '2024-02-10',
+    addedDate: formatDate(60),
   },
   {
     id: 'b-5',
@@ -119,7 +127,7 @@ export const INITIAL_BOOKS: Book[] = [
     coverColor: 'from-amber-600 to-orange-950',
     coverImage: '/src/assets/images/cover_dune_1791972947502.jpg',
     description: 'Fresque monumentale sur la planète désertique Arrakis, unique source de l\'Épice, convoitée par toutes les puissances impériales.',
-    addedDate: '2024-02-22',
+    addedDate: formatDate(50),
   },
   {
     id: 'b-6',
@@ -137,7 +145,7 @@ export const INITIAL_BOOKS: Book[] = [
     status: 'Disponible',
     coverColor: 'from-teal-800 to-slate-900',
     description: 'Essai fondamental de la pensée féministe contemporaine, analysant la condition féminine sous les prismes biologique, historique et mythologique.',
-    addedDate: '2024-03-01',
+    addedDate: formatDate(40),
   },
   {
     id: 'b-7',
@@ -155,7 +163,7 @@ export const INITIAL_BOOKS: Book[] = [
     status: 'Disponible',
     coverColor: 'from-emerald-800 to-teal-950',
     description: 'Récit fascinant de l\'évolution de l\'Homo sapiens depuis les chasseurs-cueilleurs de l\'Âge de pierre jusqu\'à la révolution biotechnologique moderne.',
-    addedDate: '2024-03-12',
+    addedDate: formatDate(30),
   },
   {
     id: 'b-8',
@@ -173,7 +181,7 @@ export const INITIAL_BOOKS: Book[] = [
     status: 'Disponible',
     coverColor: 'from-red-700 to-amber-900',
     description: 'César décide de construire une cité romaine résidentielle en pleine forêt gauloise pour forcer les irréductibles Gaulois à s\'assimiler.',
-    addedDate: '2024-03-20',
+    addedDate: formatDate(25),
   },
   {
     id: 'b-9',
@@ -191,7 +199,7 @@ export const INITIAL_BOOKS: Book[] = [
     status: 'Disponible',
     coverColor: 'from-indigo-900 to-slate-950',
     description: 'Le physicien Carlo Rovelli déconstruit notre intuition du temps à travers la mécanique quantique et la relativité générale.',
-    addedDate: '2024-04-05',
+    addedDate: formatDate(15),
   },
   {
     id: 'b-10',
@@ -209,6 +217,6 @@ export const INITIAL_BOOKS: Book[] = [
     status: 'Disponible',
     coverColor: 'from-stone-700 to-neutral-900',
     description: 'Histoire émouvante de Renée, concierge discrète et autodidacte férue d\'art et de philosophie dans un hôtel particulier parisien.',
-    addedDate: '2024-04-14',
+    addedDate: formatDate(5),
   }
 ];

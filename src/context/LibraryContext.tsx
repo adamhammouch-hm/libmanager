@@ -49,7 +49,7 @@ interface LibraryContextType {
 const LibraryContext = createContext<LibraryContextType | undefined>(undefined);
 
 export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // 1. Accounts in localStorage
+  // 1. Accounts in localStorage (with corruption protection)
   const [accounts, setAccounts] = useState<UserAccount[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.ACCOUNTS);
@@ -57,20 +57,27 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
         localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(INITIAL_ACCOUNTS));
         return INITIAL_ACCOUNTS;
       }
-      const parsed: UserAccount[] = JSON.parse(saved);
-      // Ensure manager account is always present
-      const hasManager = parsed.some(a => a.email.toLowerCase() === DEFAULT_MANAGER_ACCOUNT.email.toLowerCase());
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(INITIAL_ACCOUNTS));
+        return INITIAL_ACCOUNTS;
+      }
+      // Ensure manager account is always present and valid
+      const hasManager = parsed.some(
+        a => a && typeof a === 'object' && a.email && a.email.toLowerCase() === DEFAULT_MANAGER_ACCOUNT.email.toLowerCase()
+      );
       if (!hasManager) {
         parsed.unshift(DEFAULT_MANAGER_ACCOUNT);
         localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(parsed));
       }
       return parsed;
     } catch {
+      localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(INITIAL_ACCOUNTS));
       return INITIAL_ACCOUNTS;
     }
   });
 
-  // 2. Books in localStorage
+  // 2. Books in localStorage (with corruption & schema protection)
   const [books, setBooks] = useState<Book[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.BOOKS);
@@ -78,30 +85,57 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
         localStorage.setItem(STORAGE_KEYS.BOOKS, JSON.stringify(INITIAL_BOOKS));
         return INITIAL_BOOKS;
       }
-      const parsed: Book[] = JSON.parse(saved);
-      // Ensure each book has a valid status: 'Disponible' | 'Indisponible'
-      const hydrated = parsed.map(b => {
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        localStorage.setItem(STORAGE_KEYS.BOOKS, JSON.stringify(INITIAL_BOOKS));
+        return INITIAL_BOOKS;
+      }
+      // Ensure each book has a valid status: 'Disponible' | 'Indisponible' and required fields
+      const hydrated: Book[] = parsed.map((b: any, index: number) => {
         const initialMatch = INITIAL_BOOKS.find(ib => ib.id === b.id);
         const cover = b.coverImage || initialMatch?.coverImage;
-        const status: BookAvailability = b.status || (b.availableCopies > 0 ? 'Disponible' : 'Indisponible');
+        const status: BookAvailability = b.status === 'Indisponible' ? 'Indisponible' : 'Disponible';
         return {
-          ...b,
-          coverImage: cover,
+          id: b.id || `book-${Date.now()}-${index}`,
+          title: b.title || 'Sans titre',
+          author: b.author || 'Auteur non renseigné',
+          isbn: b.isbn || `978-000000000${index}`,
+          category: b.category || 'Littérature classique',
+          publisher: b.publisher || 'Éditions BiblioTech',
+          year: typeof b.year === 'number' ? b.year : new Date().getFullYear(),
+          pages: typeof b.pages === 'number' ? b.pages : 100,
+          language: b.language || 'Français',
+          location: b.location || 'Rayon A-01',
+          totalCopies: typeof b.totalCopies === 'number' ? b.totalCopies : 1,
+          availableCopies: status === 'Disponible' ? 1 : 0,
           status,
+          coverColor: b.coverColor || 'from-amber-900 to-stone-900',
+          coverImage: cover,
+          description: b.description || '',
+          addedDate: b.addedDate || new Date().toISOString().split('T')[0],
         };
       });
       return hydrated;
     } catch {
+      localStorage.setItem(STORAGE_KEYS.BOOKS, JSON.stringify(INITIAL_BOOKS));
       return INITIAL_BOOKS;
     }
   });
 
-  // 3. User Session in localStorage
+  // 3. User Session in localStorage (with corruption protection)
   const [userSession, setUserSession] = useState<UserSession | null>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.SESSION);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          parsed.email &&
+          (parsed.role === 'student' || parsed.role === 'librarian')
+        ) {
+          return parsed;
+        }
       }
       return null;
     } catch {
@@ -126,18 +160,30 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   // Sync to localStorage
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.BOOKS, JSON.stringify(books));
+    try {
+      localStorage.setItem(STORAGE_KEYS.BOOKS, JSON.stringify(books));
+    } catch (e) {
+      console.error('Erreur sauvegarde books localStorage', e);
+    }
   }, [books]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accounts));
+    try {
+      localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accounts));
+    } catch (e) {
+      console.error('Erreur sauvegarde accounts localStorage', e);
+    }
   }, [accounts]);
 
   useEffect(() => {
-    if (userSession) {
-      localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(userSession));
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.SESSION);
+    try {
+      if (userSession) {
+        localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(userSession));
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.SESSION);
+      }
+    } catch (e) {
+      console.error('Erreur sauvegarde session localStorage', e);
     }
   }, [userSession]);
 
@@ -196,7 +242,7 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
     const confirmPassword = data.confirmPassword.trim();
 
     if (!firstName || !lastName || !email || !password || !confirmPassword) {
-      return { success: false, message: 'Tous les champs sont requis.' };
+      return { success: false, message: 'Tous les champs sont obligatoires.' };
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -252,19 +298,22 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
     addToast('info', 'Déconnexion', 'Vous avez été déconnecté avec succès.');
   };
 
-  // Book Operation: Add Book (Manager only)
+  // Book Operation: Add Book (Manager only + Duplicate ISBN Prevention)
   const addBook = (bookData: Omit<Book, 'id' | 'addedDate'>) => {
     if (userSession?.role !== 'librarian') {
       addToast('error', 'Action non autorisée', 'Seul le gestionnaire peut ajouter un livre.');
       return { success: false, message: 'Action réservée au gestionnaire.' };
     }
 
-    // Check duplicate by ISBN if provided
+    // Strict duplicate check by clean ISBN
     if (bookData.isbn && bookData.isbn.trim()) {
       const cleanNew = bookData.isbn.replace(/[^0-9X]/gi, '');
-      const duplicate = books.find(b => b.isbn.replace(/[^0-9X]/gi, '') === cleanNew);
-      if (duplicate) {
-        addToast('warning', 'ISBN déjà existant', `Un ouvrage existe déjà avec l'ISBN ${bookData.isbn}.`);
+      if (cleanNew.length >= 8) {
+        const duplicate = books.find(b => b.isbn.replace(/[^0-9X]/gi, '') === cleanNew);
+        if (duplicate) {
+          addToast('error', 'Doublon détecté', `Un ouvrage existe déjà avec cet ISBN (« ${duplicate.title} »).`);
+          return { success: false, message: `Un livre avec cet ISBN existe déjà dans le catalogue (« ${duplicate.title} »).` };
+        }
       }
     }
 
@@ -282,11 +331,23 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
     return { success: true, message: 'Ouvrage enregistré.', book: newBook };
   };
 
-  // Book Operation: Update Book (Manager only)
+  // Book Operation: Update Book (Manager only + Duplicate ISBN Prevention)
   const updateBook = (id: string, updates: Partial<Book>) => {
     if (userSession?.role !== 'librarian') {
       addToast('error', 'Action non autorisée', 'Seul le gestionnaire peut modifier un livre.');
       return { success: false, message: 'Action réservée au gestionnaire.' };
+    }
+
+    // Check duplicate by clean ISBN with OTHER books
+    if (updates.isbn && updates.isbn.trim()) {
+      const cleanNew = updates.isbn.replace(/[^0-9X]/gi, '');
+      if (cleanNew.length >= 8) {
+        const duplicate = books.find(b => b.id !== id && b.isbn.replace(/[^0-9X]/gi, '') === cleanNew);
+        if (duplicate) {
+          addToast('error', 'Doublon détecté', `L'ISBN ${updates.isbn} est déjà utilisé par « ${duplicate.title} ».`);
+          return { success: false, message: `Cet ISBN est déjà utilisé par un autre ouvrage (« ${duplicate.title} »).` };
+        }
+      }
     }
 
     setBooks(prev =>

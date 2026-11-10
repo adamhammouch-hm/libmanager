@@ -10,12 +10,9 @@ import {
   Edit2,
   Trash2,
   X,
-  CheckCircle2,
-  AlertCircle,
-  Camera,
 } from 'lucide-react';
 import { useLibrary } from '../context/LibraryContext';
-import { Book, BookCategory, BookAvailability } from '../types';
+import { Book, BookCategory } from '../types';
 
 interface CatalogViewProps {
   isManager?: boolean;
@@ -52,7 +49,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
   const [sortBy, setSortBy] = useState<'title' | 'author' | 'year'>('title');
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
-  // Deletion state
+  // Deletion inline confirm
   const [deletingBookId, setDeletingBookId] = useState<string | null>(null);
 
   // Active filters count for badge
@@ -423,7 +420,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                         onClick={() => onSelectBook(book.id)}
                         className="w-full py-2 px-3 text-xs font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors text-center cursor-pointer"
                       >
-                        Voir les détails de l'ouvrage
+                        Consulter la fiche détaillée
                       </button>
                     )}
                   </div>
@@ -485,31 +482,51 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                       <td className="py-3 px-4 text-right">
                         {isManager ? (
                           <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => toggleBookAvailability(book.id)}
-                              className={`px-2 py-1 text-[11px] font-semibold rounded-lg border cursor-pointer ${
-                                isAvailable
-                                  ? 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100'
-                                  : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
-                              }`}
-                              title="Changer la disponibilité"
-                            >
-                              {isAvailable ? 'Rendre Indisp.' : 'Rendre Disp.'}
-                            </button>
-                            <button
-                              onClick={() => onEditBook(book)}
-                              className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
-                              title="Modifier"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => deleteBook(book.id)}
-                              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
-                              title="Supprimer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            {deletingBookId === book.id ? (
+                              <>
+                                <span className="text-[11px] text-rose-800 font-medium">Confirmer ?</span>
+                                <button
+                                  onClick={() => { deleteBook(book.id); setDeletingBookId(null); }}
+                                  className="px-2 py-1 text-[11px] font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors cursor-pointer"
+                                >
+                                  Oui
+                                </button>
+                                <button
+                                  onClick={() => setDeletingBookId(null)}
+                                  className="px-2 py-1 text-[11px] font-medium bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors cursor-pointer"
+                                >
+                                  Non
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => toggleBookAvailability(book.id)}
+                                  className={`px-2 py-1 text-[11px] font-semibold rounded-lg border cursor-pointer ${
+                                    isAvailable
+                                      ? 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100'
+                                      : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                                  }`}
+                                  title="Changer la disponibilité"
+                                >
+                                  {isAvailable ? 'Rendre Indisp.' : 'Rendre Disp.'}
+                                </button>
+                                <button
+                                  onClick={() => onEditBook(book)}
+                                  className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+                                  title="Modifier"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => setDeletingBookId(book.id)}
+                                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                                  title="Supprimer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         ) : (
                           <button

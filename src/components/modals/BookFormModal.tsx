@@ -3,14 +3,11 @@ import {
   X,
   Camera,
   Search,
-  BookOpen,
   Sparkles,
   CheckCircle2,
   AlertCircle,
   RefreshCw,
   Edit3,
-  Layers,
-  Image as ImageIcon,
 } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Book, BookCategory, BookAvailability } from '../../types';
@@ -79,6 +76,7 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
   const [lookupFeedback, setLookupFeedback] = useState<{ type: 'success' | 'info' | 'error'; message: string } | null>(null);
 
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const isStoppingRef = useRef(false);
   const scannerContainerId = 'interactive-barcode-scanner';
 
   // Initialize form
@@ -103,9 +101,11 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
       setCoverColor(bookToEdit.coverColor);
       setCoverImage(bookToEdit.coverImage || '');
       setDescription(bookToEdit.description);
+      setScannerError(null);
+      setLookupFeedback(null);
     } else {
       // New book defaults
-      setActiveTab('scanner'); // Offer scanner first for new book
+      setActiveTab('scanner');
       setTitle('');
       setAuthor('');
       setCategory('Littérature classique');
@@ -148,7 +148,9 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
 
       if (html5QrCodeRef.current) {
         try {
-          await html5QrCodeRef.current.stop();
+          if (html5QrCodeRef.current.isScanning) {
+            await html5QrCodeRef.current.stop();
+          }
         } catch {
           // ignore
         }
@@ -181,37 +183,40 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
           handleSuccessfulScan(decodedText);
         },
         () => {
-          // Ignore individual frame failures
+          // Ignore individual frame non-detections
         }
       );
 
       setIsScannerRunning(true);
     } catch (err: any) {
-      console.warn('Scanner error:', err);
+      console.warn('Scanner camera error:', err);
       setIsScannerRunning(false);
       const errorMsg =
         err?.name === 'NotAllowedError'
-          ? 'Autorisation de la caméra refusée. Veuillez autoriser l\'accès ou saisir l\'ISBN manuellement.'
+          ? 'Autorisation de la caméra refusée. Vous pouvez autoriser la caméra ou saisir le code-barres / ISBN ci-dessous.'
           : err?.name === 'NotFoundError'
-          ? 'Aucune caméra détectée sur cet appareil. Utilisez la saisie manuelle.'
-          : 'Impossible d\'activer la caméra. La saisie manuelle reste disponible.';
+          ? 'Aucune caméra détectée sur cet appareil. Utilisez la saisie manuelle ci-dessous.'
+          : 'Impossible d\'activer le flux caméra. La saisie manuelle est disponible.';
       setScannerError(errorMsg);
     }
   };
 
   const stopScanner = async () => {
+    if (isStoppingRef.current) return;
+    isStoppingRef.current = true;
     if (html5QrCodeRef.current) {
       try {
         if (html5QrCodeRef.current.isScanning) {
           await html5QrCodeRef.current.stop();
         }
         html5QrCodeRef.current.clear();
-      } catch (e) {
+      } catch {
         // ignore
       }
       html5QrCodeRef.current = null;
     }
     setIsScannerRunning(false);
+    isStoppingRef.current = false;
   };
 
   // Called when scanner detects barcode
@@ -219,20 +224,18 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
     await stopScanner();
     setIsbn(scannedCode);
     setManualIsbnLookup(scannedCode);
-    addToast('info', 'Code-barres détecté', `ISBN : ${scannedCode}`);
-
-    // Try fetching metadata
-    await lookupBookMetadata(scannedCode);
+    addToast('info', 'Code-barres scanné', `ISBN : ${scannedCode}`);
     setActiveTab('manual');
+    await lookupBookMetadata(scannedCode);
   };
 
-  // Metadata Lookup
+  // Metadata Lookup (truthful feedback: never claim success if no data returned)
   const lookupBookMetadata = async (isbnToLookup: string) => {
     const clean = isbnToLookup.trim();
     if (!clean) return;
 
     setIsFetchingMetadata(true);
-    setLookupFeedback({ type: 'info', message: 'Recherche des informations bibliographiques...' });
+    setLookupFeedback({ type: 'info', message: 'Recherche des informations bibliographiques en cours...' });
 
     try {
       const metadata = await fetchBookMetadataByIsbn(clean);
@@ -249,19 +252,19 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
 
         setLookupFeedback({
           type: 'success',
-          message: 'Informations récupérées avec succès ! Vous pouvez les vérifier et les ajuster ci-dessous.',
+          message: 'Informations bibliographiques trouvées et préremplies. Vous pouvez les vérifier et les ajuster avant enregistrement.',
         });
         addToast('success', 'Métadonnées trouvées', `« ${metadata.title || 'Ouvrage'} » prérempli.`);
       } else {
         setLookupFeedback({
           type: 'info',
-          message: `Code ${clean} enregistré. Aucune métadonnée en ligne trouvée, veuillez renseigner les champs manuellement.`,
+          message: `ISBN ${clean} pris en compte. Aucune information en ligne n'a été trouvée : veuillez compléter les champs manuellement.`,
         });
       }
     } catch {
       setLookupFeedback({
         type: 'error',
-        message: 'Erreur réseau lors de la recherche des métadonnées. Remplissage manuel activé.',
+        message: 'Service externe temporairement indisponible. Veuillez renseigner les informations manuellement.',
       });
     } finally {
       setIsFetchingMetadata(false);
@@ -280,7 +283,7 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
     if (!title.trim() || !author.trim()) return;
 
     if (bookToEdit) {
-      updateBook(bookToEdit.id, {
+      const res = updateBook(bookToEdit.id, {
         title: title.trim(),
         author: author.trim(),
         category,
@@ -295,8 +298,12 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
         coverImage: coverImage.trim() || undefined,
         description: description.trim(),
       });
+      if (!res.success) {
+        setLookupFeedback({ type: 'error', message: res.message });
+        return;
+      }
     } else {
-      addBook({
+      const res = addBook({
         title: title.trim(),
         author: author.trim(),
         category,
@@ -313,6 +320,10 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
         coverImage: coverImage.trim() || undefined,
         description: description.trim(),
       });
+      if (!res.success) {
+        setLookupFeedback({ type: 'error', message: res.message });
+        return;
+      }
     }
 
     onClose();
@@ -335,7 +346,7 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -348,7 +359,7 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('scanner')}
-                className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
+                className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
                   activeTab === 'scanner'
                     ? 'bg-white text-slate-900 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -360,7 +371,7 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('manual')}
-                className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
+                className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
                   activeTab === 'manual'
                     ? 'bg-white text-slate-900 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -389,7 +400,7 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setActiveTab('manual')}
-                      className="px-4 py-2 text-xs font-semibold bg-white text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
+                      className="px-4 py-2 text-xs font-semibold bg-white text-slate-900 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                     >
                       Continuer en saisie manuelle
                     </button>
@@ -416,7 +427,7 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
                   <button
                     type="submit"
                     disabled={isFetchingMetadata || !manualIsbnLookup.trim()}
-                    className="px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                    className="px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                   >
                     {isFetchingMetadata ? (
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -432,7 +443,7 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveTab('manual')}
-                  className="text-xs text-slate-600 hover:text-slate-900 underline font-medium"
+                  className="text-xs text-slate-600 hover:text-slate-900 underline font-medium cursor-pointer"
                 >
                   Passer directement au formulaire sans scanner &rarr;
                 </button>
@@ -463,7 +474,7 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
                 </div>
               )}
 
-              {/* DISPONIBILITÉ (Exigée et contrôlée par le gestionnaire) */}
+              {/* DISPONIBILITÉ (Contrôlée exclusivement par le gestionnaire) */}
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                 <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
                   Disponibilité dans la bibliothèque *
@@ -538,7 +549,7 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
                       type="button"
                       onClick={() => lookupBookMetadata(isbn)}
                       disabled={!isbn.trim() || isFetchingMetadata}
-                      className="text-[11px] text-amber-700 hover:text-amber-900 font-medium underline flex items-center gap-1 cursor-pointer"
+                      className="text-[11px] text-amber-700 hover:text-amber-900 font-medium underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
                     >
                       <Sparkles className="w-3 h-3" />
                       <span>Rechercher infos</span>
@@ -643,7 +654,7 @@ export const BookFormModal: React.FC<BookFormModalProps> = ({
                     <div className="w-9 h-9 rounded-lg border border-slate-200 overflow-hidden shrink-0 bg-slate-100 flex items-center justify-center">
                       <img
                         src={coverImage}
-                        alt="Preview"
+                        alt="Aperçu"
                         className="w-full h-full object-cover"
                         onError={e => (e.currentTarget.style.display = 'none')}
                       />
