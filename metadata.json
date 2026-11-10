@@ -1,0 +1,6 @@
+{
+  "name": "BiblioTech - Gestion de Bibliothèque",
+  "description": "Système complet de gestion de bibliothèque pour médiathèques et centres documentaires : catalogue d'ouvrages, prêts et retours, adhérents, réservations et alertes retards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
