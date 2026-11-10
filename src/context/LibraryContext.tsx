@@ -445,6 +445,11 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   const resetCatalogToDefault = () => {
+    // Guard: only manager can reset the catalog
+    if (userSession?.role !== 'librarian') {
+      addToast('error', 'Action non autorisée', 'Seul le gestionnaire peut réinitialiser le catalogue.');
+      return;
+    }
     setBooks(INITIAL_BOOKS);
     localStorage.setItem(STORAGE_KEYS.BOOKS, JSON.stringify(INITIAL_BOOKS));
     addToast('info', 'Catalogue réinitialisé', 'Le catalogue initial a été restauré.');

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { BookOpen, LogIn, UserPlus, AlertCircle, CheckCircle2, ShieldCheck, KeyRound, Mail, User } from 'lucide-react';
+import { BookOpen, LogIn, UserPlus, AlertCircle, KeyRound, Mail } from 'lucide-react';
 import { useLibrary } from '../context/LibraryContext';
-import { DEFAULT_MANAGER_ACCOUNT, DEFAULT_STUDENT_ACCOUNT } from '../data/initialData';
 
 export const LoginPage: React.FC = () => {
   const { login, registerStudent } = useLibrary();
@@ -55,12 +54,6 @@ export const LoginPage: React.FC = () => {
     if (!res.success) {
       setError(res.message);
     }
-  };
-
-  const fillCredentials = (email: string, pass: string) => {
-    setLoginEmail(email);
-    setLoginPassword(pass);
-    setError(null);
   };
 
   return (
@@ -284,47 +277,6 @@ export const LoginPage: React.FC = () => {
           )}
         </div>
 
-        {/* Demo Credentials Box */}
-        <div className="mt-6 p-4 bg-white/80 backdrop-blur-xs rounded-xl border border-slate-200/80 text-xs text-slate-600 shadow-xs">
-          <div className="flex items-center gap-1.5 font-bold text-slate-800 mb-2">
-            <ShieldCheck className="w-4 h-4 text-slate-700" />
-            <span>Comptes de démonstration préenregistrés :</span>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-              <div>
-                <span className="font-semibold text-slate-800 block">Gestionnaire (contrôle total)</span>
-                <span className="font-mono text-[11px] text-slate-500">{DEFAULT_MANAGER_ACCOUNT.email} · {DEFAULT_MANAGER_ACCOUNT.password}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('login');
-                  fillCredentials(DEFAULT_MANAGER_ACCOUNT.email, DEFAULT_MANAGER_ACCOUNT.password);
-                }}
-                className="px-2 py-1 text-[11px] font-medium bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-md transition-colors cursor-pointer"
-              >
-                Remplir
-              </button>
-            </div>
-            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-              <div>
-                <span className="font-semibold text-slate-800 block">Étudiant (consultation seule)</span>
-                <span className="font-mono text-[11px] text-slate-500">{DEFAULT_STUDENT_ACCOUNT.email} · {DEFAULT_STUDENT_ACCOUNT.password}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('login');
-                  fillCredentials(DEFAULT_STUDENT_ACCOUNT.email, DEFAULT_STUDENT_ACCOUNT.password);
-                }}
-                className="px-2 py-1 text-[11px] font-medium bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-md transition-colors cursor-pointer"
-              >
-                Remplir
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
